@@ -35,8 +35,12 @@ def _extract_pr_url(session: dict) -> str | None:
     if prs:
         first = prs[0]
         if isinstance(first, dict):
-            return first.get("url")
-        return str(first)
+            # v3 returns {"pr_url": ..., "pr_state": ...}; tolerate "url"/"html_url" too.
+            url = first.get("pr_url") or first.get("url") or first.get("html_url")
+            if url:
+                return url
+        elif first:
+            return str(first)
     so = session.get("structured_output") or {}
     return so.get("pr_url")
 

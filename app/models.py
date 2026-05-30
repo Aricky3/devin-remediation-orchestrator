@@ -36,20 +36,19 @@ class TaskState(str, Enum):
         )
 
 
-# Raw Devin v3 session statuses that mean "the session is over".
+# Raw Devin v3 session `status` values that mean the session has ended for good.
+# Observed v3 statuses: new, claimed, running, suspended, resuming, exit, error.
+# Only exit/error are truly terminal; `suspended` can resume, so it maps to BLOCKED.
 DEVIN_TERMINAL_STATUSES = {
-    "finished",
-    "expired",
-    "completed",
     "exit",
     "exited",
-    "stopped",
     "error",
     "cancelled",
     "canceled",
-    "suspended",
-    "blocked",  # treated terminal only when combined with no further progress
 }
+
+# status_detail values that indicate the session needs a human before it can progress.
+DEVIN_BLOCKED_DETAILS = {"waiting_for_user", "waiting_for_approval", "blocked"}
 
 
 def derive_state(
@@ -67,20 +66,25 @@ def derive_state(
     so_status = str(so.get("status", "")).lower()
 
     has_pr = bool(pull_requests) or bool(so.get("pr_url"))
-    terminal = status in DEVIN_TERMINAL_STATUSES or so_status in {"completed", "failed"}
+    terminal = (
+        status in DEVIN_TERMINAL_STATUSES
+        or status_detail == "finished"
+        or so_status in {"completed", "failed"}
+    )
 
     if terminal:
         if has_pr or so_status == "completed":
             return TaskState.COMPLETED
         return TaskState.FAILED
 
-    # Not terminal below this point.
-    if status in ("", "new", "pending"):
-        return TaskState.DISPATCHED
-    if status_detail in ("waiting_for_user", "blocked") or status == "blocked":
-        return TaskState.BLOCKED
+    # Not terminal below this point. A PR already opened is the strongest signal,
+    # so surface PR_OPEN even if Devin is now idling and waiting on the user.
     if has_pr:
         return TaskState.PR_OPEN
+    if status_detail in DEVIN_BLOCKED_DETAILS or status in ("blocked", "suspended"):
+        return TaskState.BLOCKED
+    if status in ("", "new", "pending", "claimed"):
+        return TaskState.DISPATCHED
     return TaskState.RUNNING
 
 

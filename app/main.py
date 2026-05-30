@@ -90,7 +90,6 @@ async def lifespan(app: FastAPI):
         scheduler.add_job(
             orch.scan_and_dispatch, "interval",
             seconds=settings.scan_interval_seconds, id="scanner",
-            next_run_time=None,
         )
     scheduler.add_job(
         orch.poll_active, "interval",
@@ -98,6 +97,16 @@ async def lifespan(app: FastAPI):
     )
     scheduler.start()
     app.state.scheduler = scheduler
+
+    # Best-effort startup reconcile + scan so the system self-heals on boot:
+    # in-flight sessions get re-polled and any already-labeled issues are picked
+    # up immediately instead of waiting a full scan interval.
+    try:
+        orch.poll_active()
+        if settings.scanner_enabled:
+            orch.scan_and_dispatch()
+    except Exception:  # noqa: BLE001 - never block startup on a transient API error
+        logger.exception("startup reconcile/scan failed")
     log_event(
         logger, logging.INFO, "startup",
         repo=settings.github_repo, dry_run=settings.dry_run,

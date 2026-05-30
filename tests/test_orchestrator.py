@@ -4,7 +4,23 @@ import pytest
 from app.config import Settings
 from app.db import Database
 from app.models import Issue, TaskState
-from app.orchestrator import Orchestrator
+from app.orchestrator import Orchestrator, _extract_pr_url
+
+
+def test_extract_pr_url_handles_v3_pr_url_key():
+    # Real v3 shape observed from the API.
+    s = {"pull_requests": [{"pr_url": "https://github.com/o/r/pull/5", "pr_state": "open"}]}
+    assert _extract_pr_url(s) == "https://github.com/o/r/pull/5"
+
+
+def test_extract_pr_url_falls_back_to_structured_output():
+    s = {"pull_requests": [], "structured_output": {"pr_url": "https://github.com/o/r/pull/9"}}
+    assert _extract_pr_url(s) == "https://github.com/o/r/pull/9"
+
+
+def test_extract_pr_url_tolerates_legacy_url_key():
+    s = {"pull_requests": [{"url": "https://github.com/o/r/pull/7"}]}
+    assert _extract_pr_url(s) == "https://github.com/o/r/pull/7"
 
 
 class FakeDevin:
@@ -105,7 +121,7 @@ def test_full_lifecycle_to_completed(setup):
     devin.queue(task.session_id, [
         {"status": "running", "pull_requests": []},
         {"status": "running", "pull_requests": [{"url": "https://github.com/Aricky3/superset/pull/7"}]},
-        {"status": "finished", "pull_requests": [{"url": "https://github.com/Aricky3/superset/pull/7"}],
+        {"status": "exit", "status_detail": "finished", "pull_requests": [{"url": "https://github.com/Aricky3/superset/pull/7"}],
          "structured_output": {"status": "completed", "summary": "done", "pr_url": "https://github.com/Aricky3/superset/pull/7"},
          "acus_consumed": 4.0},
     ])
@@ -128,13 +144,13 @@ def test_metrics_summary(setup):
     orch, devin, github, db = setup
     task = orch.dispatch_issue(_issue(1))
     devin.queue(task.session_id, [
-        {"status": "finished", "pull_requests": [{"url": "https://github.com/Aricky3/superset/pull/1"}],
+        {"status": "exit", "status_detail": "finished", "pull_requests": [{"url": "https://github.com/Aricky3/superset/pull/1"}],
          "structured_output": {"status": "completed", "summary": "ok"}, "acus_consumed": 2.0},
     ])
     orch.reconcile_task(db.get_task(task.id))
 
     task2 = orch.dispatch_issue(_issue(2))
-    devin.queue(task2.session_id, [{"status": "expired", "pull_requests": []}])
+    devin.queue(task2.session_id, [{"status": "exit", "pull_requests": []}])
     orch.reconcile_task(db.get_task(task2.id))
 
     m = orch.metrics()

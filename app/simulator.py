@@ -1,7 +1,7 @@
 """A drop-in stand-in for DevinClient used in dry-run / demo / CI mode.
 
 It mimics the shape of the Devin v3 API responses and deterministically advances
-a session from ``new`` -> ``running`` -> ``finished`` (with a fake PR) based on
+a session from ``new`` -> ``running`` -> ``exit`` (with a fake PR) based on
 elapsed wall-clock time, so the full orchestration loop can be exercised without
 spending ACUs or needing network access.
 """
@@ -45,10 +45,10 @@ class SimulatedDevinClient:
         if elapsed >= _FINISH_AFTER:
             return {
                 "session_id": session_id,
-                "status": "finished",
-                "status_detail": None,
+                "status": "exit",
+                "status_detail": "finished",
                 "acus_consumed": 3.2,
-                "pull_requests": [{"url": f"https://github.com/{self.repo}/pull/{pr_num}"}],
+                "pull_requests": [{"pr_url": f"https://github.com/{self.repo}/pull/{pr_num}", "pr_state": "open"}],
                 "structured_output": {
                     "status": "completed",
                     "pr_url": f"https://github.com/{self.repo}/pull/{pr_num}",
@@ -61,7 +61,7 @@ class SimulatedDevinClient:
                 "status": "running",
                 "status_detail": "working",
                 "acus_consumed": 1.8,
-                "pull_requests": [{"url": f"https://github.com/{self.repo}/pull/{pr_num}"}],
+                "pull_requests": [{"pr_url": f"https://github.com/{self.repo}/pull/{pr_num}", "pr_state": "open"}],
                 "structured_output": None,
             }
         return {
