@@ -6,6 +6,8 @@
 
 ![Dashboard](docs/dashboard.png)
 
+> **Live run (real Devin v3 sessions):** all 4 curated Superset issues were remediated autonomously — Devin opened a PR for each, **100% success**, ~2.9 min median time-to-PR. See [§8 results](#8-the-remediation-backlog-part-1).
+
 ---
 
 ## 1. The problem this solves
@@ -111,14 +113,16 @@ Point a repo webhook at `https://<host>/webhooks/github` (content-type `applicat
 
 ## 8. The remediation backlog (Part 1)
 
-Curated, concrete issues against Apache Superset (see [`scripts/remediation_issues.json`](scripts/remediation_issues.json)), spanning the assignment's categories:
+Curated, concrete issues against Apache Superset (see [`scripts/remediation_issues.json`](scripts/remediation_issues.json)), spanning the assignment's categories. **Every issue was remediated by an autonomous Devin v3 session that opened a PR closing it** ([`Aricky3/superset`](https://github.com/Aricky3/superset)):
 
-| # | Category | Issue |
-|---|----------|-------|
-| 1 | Code quality | Replace deprecated `datetime.utcnow()` with timezone-aware `datetime.now(timezone.utc)` in `superset/utils/{cache,dates}.py` |
-| 2 | Security | Use `yaml.SafeLoader` instead of unsafe `yaml.Loader` (Bandit **B506**) in `superset/examples/utils.py` |
-| 3 | Docs | Fix duplicated word "to to" in developer docs |
-| 4 | Docs | Standardize "Github" → "GitHub" capitalization |
+| # | Category | Issue | Devin's PR |
+|---|----------|-------|-----------|
+| [1](https://github.com/Aricky3/superset/issues/1) | Code quality | Replace deprecated `datetime.utcnow()` with timezone-aware `datetime.now(timezone.utc)` in `superset/utils/{cache,dates}.py` | [#8](https://github.com/Aricky3/superset/pull/8) |
+| [2](https://github.com/Aricky3/superset/issues/2) | Security | Use `yaml.safe_load` instead of unsafe `yaml.Loader` (Bandit **B506**) in `superset/examples/utils.py` | [#7](https://github.com/Aricky3/superset/pull/7) |
+| [4](https://github.com/Aricky3/superset/issues/4) | Docs | Standardize "Github" → "GitHub" capitalization | [#6](https://github.com/Aricky3/superset/pull/6) |
+| [3](https://github.com/Aricky3/superset/issues/3) | Docs | Fix duplicated word "to to" in developer docs | [#5](https://github.com/Aricky3/superset/pull/5) |
+
+Each PR is authored by `devin-ai-integration[bot]`, links back to its Devin session, and contains a minimal, focused diff — exactly what the orchestrator's structured-output contract asks for.
 
 ## 9. Configuration
 
