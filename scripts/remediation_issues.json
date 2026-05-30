@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Replace deprecated datetime.utcnow() with timezone-aware datetime in superset/utils",
+    "labels": ["code-quality", "python-3.12"],
+    "body": "## Problem\n`datetime.utcnow()` is deprecated as of Python 3.12 and returns a naive datetime, which is error-prone. It should be replaced with timezone-aware `datetime.now(timezone.utc)`.\n\n## Scope (keep this minimal)\nLimit the change to the `superset/utils` package, where there are three occurrences:\n- `superset/utils/cache.py:76` — `dttm = datetime.utcnow().isoformat().split(\".\")[0]`\n- `superset/utils/cache.py:229` — `content_changed_time = datetime.utcnow()`\n- `superset/utils/dates.py:34` — `return datetime_to_epoch(datetime.utcnow())`\n\n## Acceptance criteria\n- Replace each `datetime.utcnow()` with `datetime.now(timezone.utc)` (import `timezone` where needed).\n- Preserve existing behavior (e.g. `datetime_to_epoch` should compute the same epoch).\n- No unrelated changes. Run the linters/formatters the repo uses for the touched files.\n- Open a PR whose description includes `Closes #<this issue>`."
+  },
+  {
+    "title": "Use yaml.SafeLoader instead of yaml.Loader when parsing example metadata (Bandit B506)",
+    "labels": ["security"],
+    "body": "## Problem\n`superset/examples/utils.py:261` loads YAML with the unsafe full `yaml.Loader`, which can construct arbitrary Python objects. Bandit flags this as **B506 (unsafe YAML load)** — note the existing `# noqa: S506` suppressing the warning.\n\n```python\nmetadata = yaml.load(contents.get(METADATA_FILE_NAME, \"{}\"), Loader=yaml.Loader)  # noqa: S506\n```\n\n## Fix\nThe parsed content is simple metadata (a mapping). Switch to `yaml.SafeLoader`, which is sufficient here and removes the code-execution risk. Remove the now-unnecessary `# noqa: S506` if it is no longer needed.\n\n## Acceptance criteria\n- Use `yaml.safe_load(...)` or `yaml.load(..., Loader=yaml.SafeLoader)`.\n- Confirm example import still works for the metadata shape used here.\n- No unrelated changes. Open a PR whose description includes `Closes #<this issue>`."
+  },
+  {
+    "title": "Fix duplicated word \"to to\" in developer documentation",
+    "labels": ["docs"],
+    "body": "## Problem\nThere is a duplicated word in the VSCode remote-debugging instructions:\n\n`docs/user_docs_versioned_docs/version-6.0.0/contributing/howtos.mdx:422`\n> ... VSCode will connect **to to** 127.0.0.1:5678 which is forwarded by kubectl ...\n\n## Fix\nChange \"connect to to 127.0.0.1:5678\" to \"connect to 127.0.0.1:5678\".\n\n## Acceptance criteria\n- Single, one-word edit on that line; no other changes.\n- Open a PR whose description includes `Closes #<this issue>`."
+  },
+  {
+    "title": "Standardize \"GitHub\" capitalization in documentation",
+    "labels": ["docs"],
+    "body": "## Problem\nThe project documentation refers to the platform as \"Github\" in a badge alt-text; the correct capitalization is \"GitHub\".\n\n`docs/docs/index.mdx:30`\n> `[![Latest Release on Github](...)]`\n\n## Fix\nChange `Latest Release on Github` to `Latest Release on GitHub` on that line. (URLs/paths that contain `github.com` must stay unchanged — only the human-readable label.)\n\n## Acceptance criteria\n- Only the alt-text label is changed; image/link URLs are untouched.\n- Open a PR whose description includes `Closes #<this issue>`."
+  }
+]

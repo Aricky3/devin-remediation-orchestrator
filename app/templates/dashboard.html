@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Devin Remediation Orchestrator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+      --muted: #8b949e; --accent: #7c3aed; --green: #2ea043; --red: #f85149;
+      --yellow: #d29922; --blue: #2f81f7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           background: var(--bg); color: var(--text); }
+    header { padding: 20px 28px; border-bottom: 1px solid var(--border);
+             display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 18px; margin: 0; }
+    header .repo { color: var(--muted); font-size: 13px; }
+    .wrap { padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .panel h2 { font-size: 14px; margin: 0 0 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .s-completed { background: rgba(46,160,67,.16); color: var(--green); }
+    .s-failed { background: rgba(248,81,73,.16); color: var(--red); }
+    .s-running, .s-pr_open, .s-dispatched { background: rgba(47,129,247,.16); color: var(--blue); }
+    .s-blocked { background: rgba(210,153,34,.16); color: var(--yellow); }
+    .s-pending { background: rgba(139,148,158,.16); color: var(--muted); }
+    .muted { color: var(--muted); }
+    .foot { margin-top: 18px; color: var(--muted); font-size: 12px; }
+    .dot { height: 8px; width: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Devin Remediation Orchestrator</h1>
+      <div class="repo" id="repo">—</div>
+    </div>
+    <div class="repo"><span class="dot"></span>live · refreshes every 5s · <span id="updated">—</span></div>
+  </header>
+
+  <div class="wrap">
+    <div class="cards">
+      <div class="card"><div class="label">Total tasks</div><div class="value" id="m-total">0</div></div>
+      <div class="card"><div class="label">Active</div><div class="value" id="m-active">0</div></div>
+      <div class="card"><div class="label">Completed</div><div class="value" style="color:var(--green)" id="m-completed">0</div></div>
+      <div class="card"><div class="label">Failed</div><div class="value" style="color:var(--red)" id="m-failed">0</div></div>
+      <div class="card"><div class="label">Success rate</div><div class="value" id="m-success">—</div></div>
+      <div class="card"><div class="label">Median time-to-PR</div><div class="value" id="m-ttp">—</div></div>
+      <div class="card"><div class="label">ACUs consumed</div><div class="value" id="m-acus">0</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel"><h2>Pipeline by state</h2><canvas id="stateChart" height="170"></canvas></div>
+      <div class="panel"><h2>Outcomes</h2><canvas id="outcomeChart" height="170"></canvas></div>
+    </div>
+
+    <div class="panel" style="margin-top:22px;">
+      <h2>Remediation tasks</h2>
+      <table>
+        <thead><tr>
+          <th>Issue</th><th>Title</th><th>State</th><th>Devin session</th><th>Pull request</th><th>ACUs</th>
+        </tr></thead>
+        <tbody id="rows"><tr><td colspan="6" class="muted">No tasks yet…</td></tr></tbody>
+      </table>
+      <div class="foot">An engineering leader reads this as: how many issues entered the pipeline, how many
+      Devin closed with a PR, how fast, at what cost, and what (if anything) needs a human.</div>
+    </div>
+  </div>
+
+  <script>
+    let stateChart, outcomeChart;
+    function pill(state) { return `<span class="pill s-${state}">${state.replace('_',' ')}</span>`; }
+
+    async function refresh() {
+      const [m, tasks] = await Promise.all([
+        fetch('/metrics').then(r => r.json()),
+        fetch('/api/tasks').then(r => r.json()),
+      ]);
+      document.getElementById('repo').textContent = m.repo;
+      document.getElementById('updated').textContent = new Date().toLocaleTimeString();
+      document.getElementById('m-total').textContent = m.totals.tasks;
+      document.getElementById('m-active').textContent = m.totals.active;
+      document.getElementById('m-completed').textContent = m.totals.completed;
+      document.getElementById('m-failed').textContent = m.totals.failed;
+      document.getElementById('m-success').textContent =
+        m.success_rate === null ? '—' : Math.round(m.success_rate * 100) + '%';
+      document.getElementById('m-ttp').textContent =
+        m.median_time_to_pr_minutes === null ? '—' : m.median_time_to_pr_minutes + ' min';
+      document.getElementById('m-acus').textContent = m.total_acus_consumed;
+
+      const order = ['pending','dispatched','running','blocked','pr_open','completed','failed'];
+      const colors = ['#8b949e','#2f81f7','#2f81f7','#d29922','#2f81f7','#2ea043','#f85149'];
+      const data = order.map(s => m.by_state[s] || 0);
+      if (!stateChart) {
+        stateChart = new Chart(document.getElementById('stateChart'), {
+          type: 'bar',
+          data: { labels: order, datasets: [{ data, backgroundColor: colors }] },
+          options: { plugins: { legend: { display: false } },
+                     scales: { x: { ticks: { color: '#8b949e' } },
+                               y: { ticks: { color: '#8b949e', precision: 0 }, beginAtZero: true } } }
+        });
+      } else { stateChart.data.datasets[0].data = data; stateChart.update(); }
+
+      const oc = [m.totals.completed, m.totals.failed, m.totals.active];
+      if (!outcomeChart) {
+        outcomeChart = new Chart(document.getElementById('outcomeChart'), {
+          type: 'doughnut',
+          data: { labels: ['Completed','Failed','Active'],
+                  datasets: [{ data: oc, backgroundColor: ['#2ea043','#f85149','#2f81f7'] }] },
+          options: { plugins: { legend: { labels: { color: '#e6edf3' } } } }
+        });
+      } else { outcomeChart.data.datasets[0].data = oc; outcomeChart.update(); }
+
+      const rows = document.getElementById('rows');
+      if (!tasks.length) {
+        rows.innerHTML = '<tr><td colspan="6" class="muted">No tasks yet…</td></tr>';
+      } else {
+        rows.innerHTML = tasks.map(t => `
+          <tr>
+            <td><a href="${t.issue_url}" target="_blank">#${t.issue_number}</a></td>
+            <td>${t.issue_title}</td>
+            <td>${pill(t.state)}</td>
+            <td>${t.session_url ? `<a href="${t.session_url}" target="_blank">open</a>` : '<span class="muted">—</span>'}</td>
+            <td>${t.pr_url ? `<a href="${t.pr_url}" target="_blank">PR</a>` : '<span class="muted">—</span>'}</td>
+            <td>${t.acus_consumed ?? 0}</td>
+          </tr>`).join('');
+      }
+    }
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>
