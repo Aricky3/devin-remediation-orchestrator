@@ -1,0 +1,17 @@
+[project]
+name = "devin-remediation-orchestrator"
+version = "0.1.0"
+description = "Event-driven automation that uses the Devin API (v3) to autonomously remediate engineering issues"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
