@@ -106,6 +106,8 @@ def test_dispatch_creates_session_and_notifies(setup):
     # Prompt references the repo and a "Closes #" instruction.
     prompt = devin.created[0]["prompt"]
     assert "Aricky3/superset" in prompt and "Closes #42" in prompt
+    # Prompt asks Devin to add a regression test and report test results.
+    assert "regression test" in prompt and "Test results" in prompt
 
 
 def test_dispatch_is_idempotent(setup):

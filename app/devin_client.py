@@ -35,6 +35,14 @@ REMEDIATION_OUTPUT_SCHEMA: dict[str, Any] = {
         "pr_url": {"type": "string", "description": "URL of the opened pull request"},
         "summary": {"type": "string", "description": "1-3 sentence summary of the fix"},
         "root_cause": {"type": "string"},
+        "tests_added": {
+            "type": "boolean",
+            "description": "true if a regression/unit test was added or extended for the fix",
+        },
+        "test_results": {
+            "type": "string",
+            "description": "Commands run and their pass/fail outcome; note anything that couldn't run",
+        },
     },
     "required": ["status", "summary"],
 }
