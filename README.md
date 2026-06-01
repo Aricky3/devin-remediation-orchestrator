@@ -31,9 +31,9 @@ Devin is used here as a **general-purpose remediation worker**: each task is a f
  │ (issue label) │        │                                         │     POST /v3/organizations
  ├──────────────┤         │  Scheduled scanner (APScheduler)        │──────────▶ /{org}/sessions
  │ Periodic scan │───────▶│  polls repo for open labeled issues     │           (create session)
- ├──────────────┤         │                                         │
- │ Manual / API  │───────▶│  dispatch_issue() ──▶ DevinClient ──────┼──────────▶ Devin works the
- └──────────────┘         │            │                            │            issue autonomously
+ └──────────────┘         │                                         │
+                          │  dispatch_issue() ──▶ DevinClient ──────┼──────────▶ Devin works the
+                          │            │                            │            issue autonomously
                           │            ▼                            │
                           │   SQLite: issue → session → PR + events │
                           │            ▲                            │     GET /v3/organizations
@@ -46,7 +46,7 @@ Devin is used here as a **general-purpose remediation worker**: each task is a f
                           └───────────────────────────────────────┘
 ```
 
-**Two trigger paths, one handler.** A GitHub **webhook** is the production trigger; a **periodic scanner** is the pull-based equivalent that runs anywhere (no public URL, ideal for demos and air-gapped envs). Both converge on `dispatch_issue()`. A manual `POST /api/dispatch/{issue}` exists for on-demand runs.
+**Two trigger paths, one handler.** A GitHub **webhook** is the production trigger; a **periodic scanner** is the pull-based equivalent that runs anywhere (no public URL, ideal for demos and air-gapped envs). Both converge on `dispatch_issue()`.
 
 **Derived state machine.** Raw Devin statuses are noisy; the orchestrator maps each session onto a small, leadership-legible vocabulary: `pending → dispatched → running → (blocked) → pr_open → completed | failed`.
 
